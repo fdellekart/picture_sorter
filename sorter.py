@@ -4,11 +4,11 @@ from datetime import datetime
 from typing import List
 from pathlib import Path
 
-from PIL import Image, ExifTags
+from PIL import Image, ExifTags, UnidentifiedImageError
 
-src_dir = "./pics/"
+src_dir = "/media/florian/Ubuntu/Bilder"
 target_dir = Path("./ordered_pics/")
-name_template = "KidsCamp_2022_{idx}.jpg"
+name_template = "KidsCamp_2024_{idx}.jpg"
 
 
 class Pic:
@@ -17,11 +17,14 @@ class Pic:
 
     @property
     def capture_time(self):
-        img = Image.open(self.path)
-        date_str = {
-            ExifTags.TAGS[k]: v
-            for k, v in img._getexif().items()
-        }["DateTimeOriginal"]
+        try:
+            img = Image.open(self.path)
+            date_str = {
+                ExifTags.TAGS[k]: v
+                for k, v in img._getexif().items()
+            }["DateTimeOriginal"]
+        except (KeyError, UnidentifiedImageError):
+            return datetime.now()
         return datetime.strptime(date_str, "%Y:%m:%d %H:%M:%S")
 
     @classmethod
@@ -34,7 +37,10 @@ pics = Pic.all_from_dir(src_dir)
 pics.sort(key=lambda pic: pic.capture_time)
 
 for idx, pic in enumerate(pics, start=1):
-    target_file = Path(name_template.format(idx=idx))
+    if str(pic.path).lower().endswith(".jpg"):
+        target_file = Path(name_template.format(idx=idx))
+    else:
+        target_file = Path(str(pic.path).split("/")[-1])
     shutil.copyfile(pic.path, target_dir / target_file)
     if (idx % 50) == 0:
         print(f"{idx} files processed")
